@@ -13,12 +13,17 @@ class ResizeImg():
 
     def __call__(self, img):
         w, h = img.size
-        if h <= w: short_side_len = h
-        else: short_side_len = w
+        if h <= w:
+            short_side_len = h
+            resize_ratio = self.resized_len/short_side_len
+            resized_w = int(w * resize_ratio)
+            resized_h = 256
+        else:
+            short_side_len = w
+            resize_ratio = self.resized_len/short_side_len
+            resized_w = 256
+            resized_h = int(h * resize_ratio)
         
-        resize_ratio = self.resized_len/short_side_len
-        resized_w = int(w * resize_ratio)
-        resized_h = int(h * resize_ratio)
         resized_img = img.resize((resized_w, resized_h))
         return resized_img
 
@@ -36,13 +41,14 @@ class DcmhDataset(Dataset):
         return len(self.df)
     
     def __getitem__(self, idx):
-        data_no = self.df[idx, 0]
-        data_id = self.df[idx, 1]
-        img_path = self.df[idx, 2]
+        data_no = self.df.iat[idx, 0]
+        data_id = self.df.iat[idx, 1]
+        img_path = self.df.iat[idx, 2]
         img = Image.open(img_path)
         if self.img_transform:
-            img = self.img_transform(img)
-        tag_list = ast.literal_eval(self.df[idx, 3])
+            img = self.img_transform(img)#.view(256,256,3)
+        #print(img.view(256,256,3))
+        tag_list = ast.literal_eval(self.df.iat[idx, 3])
         tag_vec = torch.zeros(self.vocab_size)
         for tag in tag_list:
             tag_vec[self.vocab_stoi[tag]] = 1
