@@ -55,14 +55,10 @@ def train_cnn(epoch, img_model, text_model, hash_matrix, sim_matrix, device, tra
         img_optimizer.step()
     print('epoch: ', epoch, 'loss: ', loss_mean/len(train_loader))
     
-
-
 def train_text(epoch, img_model, text_model, hash_matrix, sim_matrix, device, train_loader, text_optimizer, img_out, text_out, gamma, eta, ntrains):
     ones = torch.ones(ntrains)
     img_model.train()
     text_model.eval()
-    gammma = 0
-    eta = 0
 
     loss_mean = 0
     for batch_idx, (data_ids, data_idxs, imgs, tag_vecs) in enumerate(train_loader):
@@ -76,14 +72,25 @@ def train_text(epoch, img_model, text_model, hash_matrix, sim_matrix, device, tr
         sim_sum = torch.sum(theta[data_ids,:]*sim_matrix[data_ids,:] - torch.log(1. + torch.exp(theta[data_ids,:])))
         preserve_sim = torch.sum(torch.pow(hash_matrix[data_ids,:] - text_out_batch, 2))
         preserve_balance = torch.sum(torch.pow(text_out.t().matmul(ones), 2))
-        loss = -sim_sum + gammma*preserve_sim + eta*preserve_balance
+        loss = -sim_sum + gamma*preserve_sim + eta*preserve_balance
         loss /= batch_size*ntrains
         loss_mean += loss.item()
         text_optimizer.zero_grad()
         loss.backward(retain_graph=True)
         text_optimizer.step()
     print('epoch: ', epoch, 'loss: ', loss_mean/len(train_loader))
-    
+
+def calc_loss(sim_matrix, hash_matrix, img_out, text_out, gamma, eta, ntrains):
+    ones = torch.ones(ntrains)
+
+    sim_sum = torch.sum(theta*sim_matrix - torch.log(1. + torch.exp(theta)))
+    preserve_sim = torch.sum(torch.pow(hash_matrix - img_out, 2)) + torch.sum(torch.pow(hash_matrix - text_out, 2))
+    preserve_balance = torch.sum(torch.pow(img_out.t().matmul(ones), 2)) + torch.sum(torch.pow(text_out.t().matmul(ones), 2))
+
+    loss = -sim_sum + gamma*preserve_sim + eta*preserve_balance
+
+    return loss
+
 def train(img_model, text_model, train_data, vocab_size, device):
     train_loader = torch.utils.data.DataLoader(train_data, batch_size=BATCH_SIZE)
     ntrain = len(train_data)
@@ -95,8 +102,8 @@ def train(img_model, text_model, train_data, vocab_size, device):
     img_out = torch.randn(ntrain, HASH_CODR_LENGTH)
     text_out = torch.randn((ntrain, HASH_CODR_LENGTH))
 
-    img_optimizer = optim.SGD(img_model.parameters(), lr=0.001)
-    text_optimizer = optim.SGD(text_model.parameters(), lr=0.001)
+    img_optimizer = optim.SGD(img_model.parameters(), lr=0.01)
+    text_optimizer = optim.SGD(text_model.parameters(), lr=0.01)
 
     for epoch in range(NEPOCH):
         print('epoch: ', (epoch+1))
@@ -106,6 +113,21 @@ def train(img_model, text_model, train_data, vocab_size, device):
             train_loader, text_optimizer, img_out, text_out, gamma, eta, ntrain)
         hash_matrix = torch.sign(img_out + text_out)
         
+        loss = calc_loss(sim_matrix, hash_matrix, img_out, text_model, gamma, eta, ntrain)
+        print('loss: ', loss.item())
+
+def validation(img_model, text_model, train_data):
+    ntrain = len(train_data)
+    train_loader = torch.utils.data.DataLoader(train_data, batch_size=1)
+    img_hash_codes = torch.zeros(ntrain, HASH_CODR_LENGTH, dtype=torch.float)
+    text_hash_codes = torch.zeros(ntrain, HASH_CODR_LENGTH, dtype=torch.float)
+    for batch_idx, (data_ids, data_idxs, imgs, tag_vecs) in enumerate(train_loader):
+        img_out_batch = img_model(imgs)
+        img_hash_codes[data_ids,:] = img_out_batch
+        text_out_batch = img_model(imgs)
+        text_hash_codes[data_ids,:] = text_out_batch
+    img_hash_codes = torch.sign(img_hash_codes)
+    text_hash_codes = torch.sign(text_hash_codes)
 
 
 def test(model):
