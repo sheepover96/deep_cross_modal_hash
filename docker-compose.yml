@@ -4,4 +4,4 @@ services:
     build: .
     volumes:
       - .:/usr/src/app
-runtime: nvidia
+    runtime: nvidia

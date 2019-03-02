@@ -6,7 +6,7 @@ class CNNModel(nn.Module):
         super(CNNModel, self).__init__(*args, **kwargs)
         self.conv1 = nn.Conv2d(3, 64, kernel_size=11, stride=4, padding=0)
         self.pool1 = nn.MaxPool2d(2) 
-        self.relu = nn.ReLU() 
+        self.relu = nn.ReLU(inplace=True) 
         self.lrn = nn.LocalResponseNorm(64)
         self.conv2 = nn.Conv2d(64, 256, kernel_size=5, stride=1, padding=1)
         self.pool2 = nn.MaxPool2d(kernel_size=3, stride=2) 
