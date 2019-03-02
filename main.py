@@ -38,8 +38,8 @@ def train_cnn(epoch, img_model, text_model, hash_matrix, sim_matrix, device, tra
         img_out_batch = img_model(imgs)
 
         img_out[data_ids,:] = img_out_batch
-        img_out_np = img_out.detach().numpy()
-        img_out = torch.from_numpy(img_out_np)
+        img_out_np = img_out.cpu().detach().numpy()
+        img_out = torch.from_numpy(img_out_np).to(device)
 
         theta = (1./2.)*torch.matmul(img_out, text_out.t())
         theta_batch = theta[data_ids,:]
@@ -76,8 +76,8 @@ def train_text(epoch, img_model, text_model, hash_matrix, sim_matrix, device, tr
         text_out_batch = text_model(tag_vecs) 
 
         text_out[data_ids,:] = text_out_batch
-        text_out_np = text_out.numpy() 
-        text_out = torch.from_numpy(text_out_np)
+        text_out_np = text_out.cpu().detach().numpy() 
+        text_out = torch.from_numpy(text_out_np).to(device)
 
         theta = (1./2.)*torch.matmul(img_out, text_out.t())
         theta_batch = theta[data_ids,:]
