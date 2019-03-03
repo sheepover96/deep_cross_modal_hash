@@ -96,6 +96,11 @@ def train_text(epoch, img_model, text_model, hash_matrix, sim_matrix, device, tr
     print('epoch: ', epoch, 'loss: ', loss_mean/len(train_loader))
     return text_out
 
+def calc_sim_matrix(source_label, target_label, device):
+    sim_matrix = torch.matmul(source_label, target_label.t()).to(device)
+    print(sim_matrix.shape)
+    return sim_matrix
+
 def calc_loss(sim_matrix, hash_matrix, img_out, text_out, gamma, eta, ntrains, device):
     ones = torch.ones(ntrains).to(device)
 
@@ -111,13 +116,16 @@ def calc_loss(sim_matrix, hash_matrix, img_out, text_out, gamma, eta, ntrains, d
 def train(img_model, text_model, train_data, vocab_size, device):
     train_loader = torch.utils.data.DataLoader(train_data, batch_size=BATCH_SIZE)
     ntrain = len(train_data)
+    train_loader_ = torch.utils.data.DataLoader(train_data, batch_size=ntrain)
+    for batch_idx, (data_ids, data_idxs, imgs, tag_vecs) in enumerate(train_loader_):
+        label_set = tag_vecs
     gamma = 0
     eta = 0
-    hash_matrix = torch.randn([ntrain, HASH_CODR_LENGTH], requires_grad=True).to(device)
-    sim_matrix = torch.randn([ntrain, ntrain], requires_grad=True).to(device)
+    hash_matrix = torch.randn([ntrain, HASH_CODR_LENGTH]).to(device)
+    sim_matrix = calc_sim_matrix(label_set, label_set, device)
 
-    img_out = torch.randn([ntrain, HASH_CODR_LENGTH], requires_grad=True).to(device)
-    text_out = torch.randn([ntrain, HASH_CODR_LENGTH], requires_grad=True).to(device)
+    img_out = torch.randn([ntrain, HASH_CODR_LENGTH]).to(device)
+    text_out = torch.randn([ntrain, HASH_CODR_LENGTH]).to(device)
 
     img_optimizer = optim.SGD(img_model.parameters(), lr=0.01)
     text_optimizer = optim.SGD(text_model.parameters(), lr=0.01)
