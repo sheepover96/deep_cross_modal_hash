@@ -9,7 +9,7 @@ nlp = spacy.load('en')
 DATASET_DEIR_PATH = './iapr_tc'
 TRAIN_OUTPUT_DATASET_PATH = 'train_saiapr.csv'
 TEST_OUTPUT_DATASET_PATH = 'test_saiapr.csv'
-OUTPUT_TAGS_PATH = 'tags.txt'
+OUTPUT_TAGS_PATH = 'iapr_tags.txt'
 
 
 def create_kv_dataset():
@@ -53,7 +53,7 @@ def create_kv_dataset():
 
 def create_tags():
     df = pd.read_csv(TRAIN_OUTPUT_DATASET_PATH, header=None)
-    tags = df[3]
+    tags = df[2]
     with open(OUTPUT_TAGS_PATH, 'w', encoding='utf-8') as wr2:
         for tag_list_str in tags:
             tag_list = ast.literal_eval(tag_list_str)
@@ -62,4 +62,4 @@ def create_tags():
 
 if __name__ == '__main__':
     create_kv_dataset()
-    #create_tags()
+    create_tags()
