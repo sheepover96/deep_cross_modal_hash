@@ -96,7 +96,11 @@ def train_text(epoch, img_model, text_model, hash_matrix, sim_matrix, device, tr
     return text_out
 
 def calc_sim_matrix(source_label, target_label, device):
+    print(source_label.shape)
+    print(target_label.shape)
+    print(source_label[0,:])
     sim_matrix = (torch.matmul(source_label, target_label.t()) > 0).type(torch.FloatTensor).to(device)
+    print(sim_matrix)
     return sim_matrix
 
 def calc_loss(sim_matrix, hash_matrix, img_out, text_out, gamma, eta, ntrains, device):
@@ -114,6 +118,7 @@ def calc_loss(sim_matrix, hash_matrix, img_out, text_out, gamma, eta, ntrains, d
 def train(img_model, text_model, train_data, vocab_size, device):
     train_loader = torch.utils.data.DataLoader(train_data, batch_size=BATCH_SIZE)
     ntrain = len(train_data)
+    print(ntrain)
     train_loader_ = torch.utils.data.DataLoader(train_data, batch_size=ntrain)
     for batch_idx, (data_ids, data_idxs, imgs, tag_vecs) in enumerate(train_loader_):
         label_set = tag_vecs
@@ -163,10 +168,11 @@ def tokenizer2(text):
 def main():
     device = torch.device("cuda" if GPU else "cpu")
 
-    TEXT = Field(sequential=True, tokenize=tokenizer2, lower=True)
+    TEXT = Field(sequential=True, tokenize=tokenizer2, lower=True, stop_words=['<eos>'])
     lang = LanguageModelingDataset(path='./tags.txt', text_field=TEXT)
-    TEXT.build_vocab(lang, min_freq=3)
+    TEXT.build_vocab(lang, min_freq=45)
     vocab = TEXT.vocab
+    print('a', len(TEXT.vocab.stoi))
     vocab_size = len(vocab.freqs)
     #print(vocab.itos)
     #print(vocab.stoi)
