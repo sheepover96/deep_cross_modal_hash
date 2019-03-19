@@ -1,8 +1,10 @@
+import numpy as np
 import pandas as pd
 import spacy
 
 import sys, os, csv
 import ast
+from PIL import Image
 
 nlp = spacy.load('en')
 
@@ -41,8 +43,12 @@ def create_kv_dataset():
                 img_id = int(img_path[:-4])
                 img_tags = data_list[img_id]
                 full_img_path = DATASET_DEIR_PATH + '/saiapr_tc-12/' + file_path + '/images/' + img_path
-                train_data_list.append([img_data_no, img_id, full_img_path, img_tags])
-                img_data_no += 1
+                img = np.asarray(Image.open(full_img_path))
+                if len(img.shape) == 3:
+                    train_data_list.append([img_data_no, img_id, full_img_path, img_tags])
+                    img_data_no += 1
+                else:
+                    print(img.shape)
 
 
     with open(TRAIN_OUTPUT_DATASET_PATH, 'w', newline='', encoding='utf-8') as tr_wr,\
