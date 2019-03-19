@@ -96,7 +96,6 @@ def train_text(epoch, img_model, text_model, hash_matrix, sim_matrix, device, tr
     return text_out
 
 def calc_sim_matrix(source_label, target_label, device):
-    print(source_label.shape)
     print(target_label.shape)
     print(source_label[0,:])
     sim_matrix = (torch.matmul(source_label, target_label.t()) > 0).type(torch.FloatTensor).to(device)
@@ -116,6 +115,12 @@ def calc_loss(sim_matrix, hash_matrix, img_out, text_out, gamma, eta, ntrains, d
     return loss
 
 def train(img_model, text_model, train_data, vocab_size, device):
+    for (data_ids, data_idxs, imgs, tag_vecs) in train_data:
+        if imgs.shape != (3, 256, 256):
+            print(imgs.shape)
+            print(data_ids)
+            print(data_idxs)
+
     train_loader = torch.utils.data.DataLoader(train_data, batch_size=BATCH_SIZE)
     ntrain = len(train_data)
     print(ntrain)
@@ -169,15 +174,14 @@ def main():
     device = torch.device("cuda" if GPU else "cpu")
 
     TEXT = Field(sequential=True, tokenize=tokenizer2, lower=True, stop_words=['<eos>'])
-    lang = LanguageModelingDataset(path='./tags.txt', text_field=TEXT)
-    TEXT.build_vocab(lang, min_freq=45)
+    lang = LanguageModelingDataset(path='./iapr_tags.txt', text_field=TEXT)
+    TEXT.build_vocab(lang)
     vocab = TEXT.vocab
-    print('a', len(TEXT.vocab.stoi))
-    vocab_size = len(vocab.freqs)
+    vocab_size = len(vocab.freqs) + 1
     #print(vocab.itos)
     #print(vocab.stoi)
 
-    train_data = DcmhDataset('./train_dataset.csv', vocab.stoi, vocab_size)
+    train_data = DcmhDataset('./train_saiapr.csv', vocab.stoi, vocab_size)
 
     img_model = CNNModel(IMG_SIZE, HASH_CODR_LENGTH).to(device)
     text_model = TextModel(vocab_size, HASH_CODR_LENGTH).to(device)
