@@ -33,14 +33,16 @@ def create_kv_dataset():
 
     train_data_list = []
     test_data_list = []
+    img_data_no = 0
     for file_path in files:
         if file_path != '.DS_Store':
             img_paths = os.listdir(DATASET_DEIR_PATH + '/saiapr_tc-12/' + file_path + '/images')
             for img_path in img_paths:
-                img_no = int(img_path[:-4])
-                img_tags = data_list[img_no]
+                img_id = int(img_path[:-4])
+                img_tags = data_list[img_id]
                 full_img_path = DATASET_DEIR_PATH + '/saiapr_tc-12/' + file_path + '/images/' + img_path
-                train_data_list.append([img_no, full_img_path, img_tags])
+                train_data_list.append([img_data_no, img_id, full_img_path, img_tags])
+                img_data_no += 1
 
 
     with open(TRAIN_OUTPUT_DATASET_PATH, 'w', newline='', encoding='utf-8') as tr_wr,\
@@ -53,7 +55,7 @@ def create_kv_dataset():
 
 def create_tags():
     df = pd.read_csv(TRAIN_OUTPUT_DATASET_PATH, header=None)
-    tags = df[2]
+    tags = df[3]
     with open(OUTPUT_TAGS_PATH, 'w', encoding='utf-8') as wr2:
         for tag_list_str in tags:
             tag_list = ast.literal_eval(tag_list_str)
