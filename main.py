@@ -7,6 +7,7 @@ from torchvision import datasets, transforms
 from torch.autograd import Variable
 
 import numpy as np
+import time
 from torchtext.data import Field
 from torchtext.datasets import LanguageModelingDataset
 import spacy
@@ -36,22 +37,21 @@ def train_cnn(epoch, img_model, text_model, hash_matrix, sim_matrix, device, tra
         ones = torch.ones(batch_size, 1).to(device)
         ones_ = torch.ones(ntrains - batch_size, 1).to(device)
 
+        img_optimizer.zero_grad()
         img_out_batch = img_model(imgs)
 
         img_out[data_ids,:] = img_out_batch.data
 
-        theta = (1./2.)*torch.mm(img_out_batch, text_out.t())
-        theta_batch = theta[data_ids,:]
+        theta_batch = (1./2.)*torch.mm(img_out_batch, text_out.t())
         hash_matrix_batch = hash_matrix[data_ids,:]
         sim_matrix_batch = sim_matrix[data_ids,:]
 
-        sim_sum = torch.sum(theta_batch*sim_matrix_batch - torch.log(1. + torch.exp(theta_batch)))
+        sim_sum = -torch.sum(theta_batch*sim_matrix_batch - torch.log(1. + torch.exp(theta_batch)))
         preserve_sim = torch.sum(torch.pow(hash_matrix_batch - img_out_batch, 2))
         preserve_balance = torch.sum(torch.pow(img_out_batch.t().mm(ones) + img_out[unupdated_ids].t().mm(ones_), 2))
-        loss = -sim_sum + gamma*preserve_sim + eta*preserve_balance
+        loss = sim_sum + gamma*preserve_sim + eta*preserve_balance
         loss /= (batch_size*ntrains)
 
-        img_optimizer.zero_grad()
         loss.backward()
         img_optimizer.step()
         loss_mean += loss.item()
@@ -71,18 +71,17 @@ def train_text(epoch, img_model, text_model, hash_matrix, sim_matrix, device, tr
         ones = torch.ones(batch_size, 1).to(device)
         ones_ = torch.ones(ntrains - batch_size, 1).to(device)
 
-        text_out_batch = text_model(tag_vecs) 
+        text_out_batch = text_model(tag_vecs)
 
         text_out[data_ids,:] = text_out_batch.data
 
-        theta = (1./2.)*torch.mm(text_out_batch.t(), img_out)
-        theta_batch = theta[data_ids,:]
+        theta_batch = (1./2.)*torch.mm(text_out_batch, img_out.t())
         hash_matrix_batch = hash_matrix[data_ids,:]
         sim_matrix_batch = sim_matrix[data_ids,:]
 
         sim_sum = torch.sum(theta_batch*sim_matrix_batch - torch.log(1. + torch.exp(theta_batch)))
         preserve_sim = torch.sum(torch.pow(hash_matrix_batch - text_out_batch, 2))
-        preserve_balance = torch.sum(torch.pow(text_out_batch.t().mm(ones), text_out[unupdated_ids].t().mm(ones_), 2))
+        preserve_balance = torch.sum(torch.pow(text_out_batch.t().mm(ones) + text_out[unupdated_ids].t().mm(ones_), 2))
         loss = -sim_sum + gamma*preserve_sim + eta*preserve_balance
         loss /= (batch_size*ntrains)
 
@@ -135,7 +134,7 @@ def train(img_model, text_model, train_data, vocab_size, device):
     text_optimizer = optim.SGD(text_model.parameters(), lr=0.1)
 
     for epoch in range(NEPOCH):
-        print('epoch: ', (epoch+1))
+        print('epoch: ', (epoch))
         img_out = train_cnn(epoch, img_model, text_model, hash_matrix, sim_matrix, device,\
             train_loader, img_optimizer, img_out, text_out, gamma, eta, ntrain)
         text_out = train_text(epoch, img_model, text_model, hash_matrix, sim_matrix, device,\
