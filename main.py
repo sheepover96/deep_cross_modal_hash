@@ -158,12 +158,11 @@ def train(img_model, text_model, train_data, vocab_size, device):
             img_optimizer.zero_grad()
             img_out_batch = img_model(imgs)
 
-            img_out_buf[data_ids,:] = img_out_batch
-            img_out = Variable(img_out_buf, requires_grad=True)
-            text_out = Variable(text_out_buf, requires_grad=True)
+            img_out_buf[data_ids,:] = img_out_batch.data
+            img_out = img_out_buf
+            text_out = text_out_buf
 
-            theta = (1./2.)*torch.mm(img_out, text_out.t())
-            theta_batch = theta[data_ids,:]
+            theta_batch = (1./2.)*torch.mm(img_out_batch, text_out.t())
             hash_matrix_batch = hash_matrix[data_ids,:]
             sim_matrix_batch = sim_matrix[data_ids,:]
 
@@ -174,7 +173,6 @@ def train(img_model, text_model, train_data, vocab_size, device):
             loss /= (batch_size*ntrain)
 
             loss.backward()
-            print(img_out.grad)
             img_optimizer.step()
             loss_mean += loss.item()
         print('epoch: ', epoch, 'img_loss: ', loss_mean/len(train_loader))
@@ -191,7 +189,7 @@ def train(img_model, text_model, train_data, vocab_size, device):
             text_optimizer.zero_grad()
             text_out_batch = text_model(tag_vecs)
 
-            text_out_buf[data_ids,:] = text_out_batch
+            text_out_buf[data_ids,:] = text_out_batch.data
             text_out = Variable(text_out_buf, requires_grad=True) 
             img_out = Variable(img_out_buf, requires_grad=True)
 
