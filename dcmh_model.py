@@ -42,18 +42,25 @@ class CNNModel(nn.Module):
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
         out = self.fc(x)
-        
         return out
 
 
 class TextModel(nn.Module):
     def __init__(self, vocab_size, hash_code_len, *args, **kwargs):
         super(TextModel, self).__init__(*args, **kwargs)
-        self.fc1 = nn.Linear(vocab_size, 8192)
-        self.fc2 = nn.Linear(8192, hash_code_len)
+        self.conv1 = nn.Conv1d(1, 8192, kernel_size=vocab_size, stride=1)
+        self.conv2 = nn.Conv1d(8192, hash_code_len, kernel_size=1, stride=1)
+        self.fc1 = nn.Linear(vocab_size, 512)
+        self.relu = nn.ReLU(inplace=True)
+        self.fc2 = nn.Linear(512, hash_code_len)
 
     def forward(self, input):
         x = self.fc1(input)
+        x = self.relu(x)
         out = self.fc2(x)
+        #x = self.conv1(input)
+        #x = self.relu(x)
+        #x = self.conv2(x)
+        #out = x.squeeze()
 
         return out

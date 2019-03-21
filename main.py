@@ -21,8 +21,8 @@ GPU = torch.cuda.is_available()
 
 HASH_CODR_LENGTH = 32
 IMG_SIZE = 256
-BATCH_SIZE = 32
-NEPOCH = 100
+BATCH_SIZE = 256
+NEPOCH = 1000
 
 
 def train_cnn(epoch, img_model, text_model, hash_matrix, sim_matrix, device, train_loader, img_optimizer, img_out, text_out, gamma, eta, ntrains):
@@ -39,6 +39,7 @@ def train_cnn(epoch, img_model, text_model, hash_matrix, sim_matrix, device, tra
 
         img_optimizer.zero_grad()
         img_out_batch = img_model(imgs)
+        #print(img_out_batch)
 
         img_out[data_ids,:] = img_out_batch.data
 
@@ -71,7 +72,9 @@ def train_text(epoch, img_model, text_model, hash_matrix, sim_matrix, device, tr
         ones = torch.ones(batch_size, 1).to(device)
         ones_ = torch.ones(ntrains - batch_size, 1).to(device)
 
+        text_optimizer.zero_grad()
         text_out_batch = text_model(tag_vecs)
+        #print(text_out_batch)
 
         text_out[data_ids,:] = text_out_batch.data
 
@@ -79,20 +82,28 @@ def train_text(epoch, img_model, text_model, hash_matrix, sim_matrix, device, tr
         hash_matrix_batch = hash_matrix[data_ids,:]
         sim_matrix_batch = sim_matrix[data_ids,:]
 
-        sim_sum = torch.sum(theta_batch*sim_matrix_batch - torch.log(1. + torch.exp(theta_batch)))
+        sim_sum = -torch.sum(theta_batch*sim_matrix_batch - torch.log(1. + torch.exp(theta_batch)))
+        #print('sum', sim_sum.item())
         preserve_sim = torch.sum(torch.pow(hash_matrix_batch - text_out_batch, 2))
+        #print('sim', preserve_sim.item())
         preserve_balance = torch.sum(torch.pow(text_out_batch.t().mm(ones) + text_out[unupdated_ids].t().mm(ones_), 2))
-        loss = -sim_sum + gamma*preserve_sim + eta*preserve_balance
+        #print('balance', preserve_balance.item())
+        loss = sim_sum + gamma*preserve_sim + eta*preserve_balance
         loss /= (batch_size*ntrains)
+        if torch.isnan(loss):
+            break
 
-        text_optimizer.zero_grad()
+        torch.autograd.set_detect_anomaly(True)
         loss.backward()
         text_optimizer.step()
+        #print(text_model.fc1.weight)
+        #print(text_model.fc2.weight)
         loss_mean += loss.item()
     print('epoch: ', epoch, 'loss: ', loss_mean/len(train_loader))
     return text_out
 
 def calc_sim_matrix(source_label, target_label, device):
+    print(target_label.shape)
     sim_matrix = (torch.mm(source_label, target_label.t()) > 0).type(torch.FloatTensor).to(device)
     return sim_matrix
 
@@ -100,11 +111,14 @@ def calc_loss(sim_matrix, hash_matrix, img_out, text_out, gamma, eta, ntrains, d
     ones = torch.ones(ntrains, 1).to(device)
 
     theta = (1./2.)*torch.mm(img_out, text_out.t())
-    sim_sum = torch.sum(theta*sim_matrix - torch.log(1. + torch.exp(theta)))
+    sim_sum = -torch.sum(theta*sim_matrix - torch.log(1. + torch.exp(theta)))
+    print('sum', sim_sum)
     preserve_sim = torch.sum(torch.pow(hash_matrix - img_out, 2)) + torch.sum(torch.pow(hash_matrix - text_out, 2))
+    print('sim', preserve_sim)
     preserve_balance = torch.sum(torch.pow(img_out.t().mm(ones), 2)) + torch.sum(torch.pow(text_out.t().mm(ones), 2))
+    print('balance', preserve_balance)
 
-    loss = -sim_sum + gamma*preserve_sim + eta*preserve_balance
+    loss = sim_sum + gamma*preserve_sim + eta*preserve_balance
 
     return loss
 
@@ -130,8 +144,8 @@ def train(img_model, text_model, train_data, vocab_size, device):
     hash_matrix = torch.sign(img_out + text_out)
     sim_matrix = calc_sim_matrix(label_set, label_set, device)
 
-    img_optimizer = optim.SGD(img_model.parameters(), lr=0.1)
-    text_optimizer = optim.SGD(text_model.parameters(), lr=0.1)
+    img_optimizer = optim.SGD(img_model.parameters(), lr=0.01)
+    text_optimizer = optim.SGD(text_model.parameters(), lr=0.01)
 
     for epoch in range(NEPOCH):
         print('epoch: ', (epoch))
@@ -181,7 +195,6 @@ def main():
     text_model = TextModel(vocab_size, HASH_CODR_LENGTH).to(device)
 
     train(img_model, text_model, train_data, vocab_size, device)
-
 
 
 

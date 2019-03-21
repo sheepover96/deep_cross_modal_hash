@@ -51,6 +51,8 @@ class DcmhDataset(Dataset):
         tag_list = ast.literal_eval(self.df.iat[idx, 3])
         tag_vec = torch.zeros(self.vocab_size)
         for tag in tag_list:
-            tag_vec[self.vocab_stoi[tag]] = 1
+            tag_vec[self.vocab_stoi[tag]] = 1.
+        if tag_vec.sum() == 0:
+            print(tag_vec)
 
         return data_no, data_id, img, tag_vec
