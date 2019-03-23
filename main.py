@@ -154,19 +154,14 @@ def calc_map(queries, queries_label, target_item, target_label, k=None):
     return mAP/len(queries)
 
 def train(img_model, text_model, source_data, vocab_size, device):
-    for (data_ids, data_idxs, imgs, tag_vecs) in train_data:
-        if imgs.shape != (3, 256, 256):
-            print(imgs.shape)
-            print(data_ids)
-            print(data_idxs)
 
     nsource = len(source_data)
     # train validation split
     idx_list = [i for i in range(nsource)]
     val_idx_list = np.random.choice(idx_list, int(nsource/10), replace=False)
     train_idx_list = np.setdiff1d(idx_list, val_idx_list)
-    train_data = [ source_data[idx] for idx in train_idx_list ] 
-    val_data = [ source_data[idx] for idx in val_idx_list ] 
+    train_data = [ [idx] + source_data[idx] for idx in train_idx_list ] 
+    val_data = [ [idx] + source_data[idx] for idx in val_idx_list ] 
 
     ntrain = len(train_data)
     print(ntrain)

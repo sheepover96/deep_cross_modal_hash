@@ -60,12 +60,10 @@ def create_kv_dataset():
         test_data_idxs = np.random.choice(idx_list, TEST_DATA_NUM, replace=False)
         train_data_idxs = np.setdiff1d(idx_list, test_data_idxs)
         for idx, train_idx in enumerate(train_data_idxs):
-            element = [idx]
-            element.extend(source_data_list[train_idx])
+            element = source_data_list[train_idx]
             tr_writer.writerow(element)
         for idx, test_idx in enumerate(test_data_idxs):
-            element = [idx]
-            element.extend(source_data_list[test_idx])
+            element = source_data_list[test_idx]
             test_writer.writerow(element)
 
 
