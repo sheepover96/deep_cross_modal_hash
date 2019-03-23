@@ -102,8 +102,17 @@ def train_text(epoch, img_model, text_model, hash_matrix, sim_matrix, device, tr
     print('epoch: ', epoch, 'loss: ', loss_mean/len(train_loader))
     return text_out
 
+def generate_img_code(img_model, query):
+    model_out =  img_model(query)
+    hash_code = torch.sign(model_out)
+    return hash_code
+
+def generate_text_code(text_model, query):
+    model_out =  text_model(query)
+    hash_code = torch.sign(model_out)
+    return hash_code
+
 def calc_sim_matrix(source_label, target_label, device):
-    print(target_label.shape)
     sim_matrix = (torch.mm(source_label, target_label.t()) > 0).type(torch.FloatTensor).to(device)
     return sim_matrix
 
@@ -122,19 +131,49 @@ def calc_loss(sim_matrix, hash_matrix, img_out, text_out, gamma, eta, ntrains, d
 
     return loss
 
-def train(img_model, text_model, train_data, vocab_size, device):
+def calc_map(queries, queries_label, target_item, target_label, k=None):
+    target_out = model(target_item)
+    target_hash_code = torch.sign(target_out)
+    mAP = 0.
+    for query_item, query_label in queries:
+        query_out = model(query_item)
+        query_hash_code = torch.sign(query_out)
+
+        is_correct_target = (torch.matmul(query_label, target_label.t()) > 0).type(torch.FloatTensor)
+        correct_target_num = is_correct_target.sum()
+        if correct_target_num == 0:
+            continue
+
+        hamming_dist = torch.mm(query_hash_code, target_hash_code.t())
+        _, hd_sorted_idx = hamming_dist.sort(descending=True)
+        query_result = is_correct_target[hd_sorted_idx]
+
+        count = torch.linspace(1, correct_target_num, correct_target_num)
+        tindex = torch.nonzero(query_result == 1) + 1.
+        mAP += count/tindex
+    return mAP/len(queries)
+
+def train(img_model, text_model, source_data, vocab_size, device):
     for (data_ids, data_idxs, imgs, tag_vecs) in train_data:
         if imgs.shape != (3, 256, 256):
             print(imgs.shape)
             print(data_ids)
             print(data_idxs)
 
-    train_loader = torch.utils.data.DataLoader(train_data, batch_size=BATCH_SIZE)
+    nsource = len(source_data)
+    # train validation split
+    idx_list = [i for i in range(nsource)]
+    val_idx_list = np.random.choice(idx_list, int(nsource/10), replace=False)
+    train_idx_list = np.setdiff1d(idx_list, val_idx_list)
+    train_data = [ source_data[idx] for idx in train_idx_list ] 
+    val_data = [ source_data[idx] for idx in val_idx_list ] 
+
     ntrain = len(train_data)
     print(ntrain)
     train_loader_ = torch.utils.data.DataLoader(train_data, batch_size=ntrain)
     for batch_idx, (data_ids, data_idxs, imgs, tag_vecs) in enumerate(train_loader_):
         label_set = tag_vecs
+    train_loader = torch.utils.data.DataLoader(train_data, batch_size=BATCH_SIZE)
     gamma = 1.
     eta = 1.
 
@@ -157,19 +196,31 @@ def train(img_model, text_model, train_data, vocab_size, device):
         loss = calc_loss(sim_matrix, hash_matrix, img_out, text_out, gamma, eta, ntrain, device)
         print('loss: ', loss.item())
 
-def validation(img_model, text_model, train_data):
-    ntrain = len(train_data)
-    train_loader = torch.utils.data.DataLoader(train_data, batch_size=1)
-    img_hash_codes = torch.zeros(ntrain, HASH_CODR_LENGTH, dtype=torch.float)
-    text_hash_codes = torch.zeros(ntrain, HASH_CODR_LENGTH, dtype=torch.float)
-    with torch.no_grad():
-        for batch_idx, (data_ids, data_idxs, imgs, tag_vecs) in enumerate(train_loader):
-            img_out_batch = img_model(imgs)
-            img_hash_codes[data_ids,:] = img_out_batch
-            text_out_batch = img_model(imgs)
-            text_hash_codes[data_ids,:] = text_out_batch
-        img_hash_codes = torch.sign(img_hash_codes)
-        text_hash_codes = torch.sign(text_hash_codes)
+def validation(img_model, text_model, val_data):
+    nval = len(val_data)
+
+    idx_list = [i for i in range(nval)]
+    query_idx_list = np.random.choice(idx_list, 20, replace=False)
+    ret_idx_list = np.setdiff1d(idx_list, query_idx_list)
+    query_data = [ val_data[idx] for idx in query_idx_list ] 
+    ret_data = [ val_data[idx] for idx in ret_idx_list ] 
+
+    query_loader = torch.utils.data.DataLoader(query_data, batch_size=len(query_data))
+    for data_ids, data_idxs, imgs, tag_vecs in enumerate(query_loader):
+        query_img_hash_code = generate_img_code(img_model, imgs)
+        query_text_hash_code = generate_text_code(text_model, tag_vecs)
+        query_labels = tag_vecs
+
+    ret_loader = torch.utils.data.DataLoader(ret_data, batch_size=len(ret_data))
+    for data_ids, data_idxs, imgs, tag_vecs in enumerate(query_loader):
+        ret_img_hash_code = generate_img_code(img_model, imgs)
+        ret_text_hash_code = generate_text_code(text_model, tag_vecs)
+        ret_labels = tag_vecs
+
+    calc_map(query_img_hash_code, query_labels, ret_text_hash_code, ret_labels)
+    calc_map(query_text_hash_code, query_labels, ret_img_hash_code, ret_labels)
+
+
 
 
 def test(model):
@@ -190,6 +241,7 @@ def main():
     #print(vocab.stoi)
 
     train_data = DcmhDataset('./train_saiapr.csv', vocab.stoi, vocab_size)
+    test_data = DcmhDataset('./test_saiapr.csv', vocab.stoi, vocab_size)
 
     img_model = CNNModel(IMG_SIZE, HASH_CODR_LENGTH).to(device)
     text_model = TextModel(vocab_size, HASH_CODR_LENGTH).to(device)

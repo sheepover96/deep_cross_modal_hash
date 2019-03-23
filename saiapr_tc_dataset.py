@@ -12,6 +12,7 @@ DATASET_DEIR_PATH = './iapr_tc'
 TRAIN_OUTPUT_DATASET_PATH = 'train_saiapr.csv'
 TEST_OUTPUT_DATASET_PATH = 'test_saiapr.csv'
 OUTPUT_TAGS_PATH = 'iapr_tags.txt'
+TEST_DATA_NUM = 1000
 
 
 def create_kv_dataset():
@@ -33,8 +34,7 @@ def create_kv_dataset():
                         #print(tag_dict[int(elements[2])])
                         data_list[int(elements[0])].append(tag_dict[int(elements[2])])
 
-    train_data_list = []
-    test_data_list = []
+    source_data_list = []
     img_data_no = 0
     for file_path in files:
         if file_path != '.DS_Store':
@@ -45,18 +45,28 @@ def create_kv_dataset():
                 full_img_path = DATASET_DEIR_PATH + '/saiapr_tc-12/' + file_path + '/images/' + img_path
                 img = np.asarray(Image.open(full_img_path))
                 if len(img.shape) == 3:
-                    train_data_list.append([img_data_no, img_id, full_img_path, img_tags])
+                    source_data_list.append([img_id, full_img_path, img_tags])
                     img_data_no += 1
                 else:
                     print(img.shape)
+    print(source_data_list)
 
 
     with open(TRAIN_OUTPUT_DATASET_PATH, 'w', newline='', encoding='utf-8') as tr_wr,\
         open(TEST_OUTPUT_DATASET_PATH, 'w', newline='', encoding='utf-8') as test_wr:
         tr_writer = csv.writer(tr_wr, lineterminator='\n')
         test_writer = csv.writer(test_wr, lineterminator='\n')
-        for elements in train_data_list:
-            tr_writer.writerow(elements)
+        idx_list = [i for i in range(len(source_data_list))]
+        test_data_idxs = np.random.choice(idx_list, TEST_DATA_NUM, replace=False)
+        train_data_idxs = np.setdiff1d(idx_list, test_data_idxs)
+        for idx, train_idx in enumerate(train_data_idxs):
+            element = [idx]
+            element.extend(source_data_list[train_idx])
+            tr_writer.writerow(element)
+        for idx, test_idx in enumerate(test_data_idxs):
+            element = [idx]
+            element.extend(source_data_list[test_idx])
+            test_writer.writerow(element)
 
 
 def create_tags():
@@ -70,4 +80,4 @@ def create_tags():
 
 if __name__ == '__main__':
     create_kv_dataset()
-    create_tags()
+    #create_tags()
