@@ -14,10 +14,10 @@ class CNNModel(nn.Module):
         self.conv4 = nn.Conv2d(256, 256, kernel_size=5, stride=1, padding=1)
         self.conv5 = nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=0)
         self.pool5 = nn.MaxPool2d(2) 
-        self.conv6 = nn.Conv2d(256, 4096, kernel_size=1, stride=1, padding=0)
-        self.conv7 = nn.Conv2d(4096, 4096, kernel_size=1, stride=1, padding=0)
+        self.conv6 = nn.Conv2d(256, 512, kernel_size=1, stride=1, padding=0)
+        self.conv7 = nn.Conv2d(512, 512, kernel_size=1, stride=1, padding=0)
         self.avgpool = nn.AdaptiveAvgPool2d((1,1))
-        self.fc = nn.Linear(4096, hash_code_len)
+        self.fc = nn.Linear(512, hash_code_len)
 
     def forward(self, input):
         x = self.conv1(input)

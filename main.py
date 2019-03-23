@@ -90,10 +90,8 @@ def train_text(epoch, img_model, text_model, hash_matrix, sim_matrix, device, tr
         #print('balance', preserve_balance.item())
         loss = sim_sum + gamma*preserve_sim + eta*preserve_balance
         loss /= (batch_size*ntrains)
-        if torch.isnan(loss):
-            break
 
-        torch.autograd.set_detect_anomaly(True)
+        #torch.autograd.set_detect_anomaly(True)
         loss.backward()
         text_optimizer.step()
         #print(text_model.fc1.weight)
@@ -235,7 +233,7 @@ def main():
     #print(vocab.itos)
     #print(vocab.stoi)
 
-    train_data = DcmhDataset('./train_saiapr.csv', vocab.stoi, vocab_size)
+    train_data = DcmhDataset('./train_saiapr_mini.csv', vocab.stoi, vocab_size)
     test_data = DcmhDataset('./test_saiapr.csv', vocab.stoi, vocab_size)
 
     img_model = CNNModel(IMG_SIZE, HASH_CODR_LENGTH).to(device)
