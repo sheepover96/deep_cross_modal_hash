@@ -130,25 +130,24 @@ def calc_loss(sim_matrix, hash_matrix, img_out, text_out, gamma, eta, ntrains, d
     return loss
 
 def calc_map(queries, queries_label, target_item, target_label, k=None):
-    target_out = model(target_item)
-    target_hash_code = torch.sign(target_out)
     mAP = 0.
-    for query_item, query_label in queries:
-        query_out = model(query_item)
-        query_hash_code = torch.sign(query_out)
+    if k is None:
+        k = target_item.shape[0]
+    for query_item, query_label in zip(queries, queries_label):
 
         is_correct_target = (torch.matmul(query_label, target_label.t()) > 0).type(torch.FloatTensor)
-        correct_target_num = is_correct_target.sum()
+        correct_target_num = is_correct_target.sum().type(torch.LongTensor).item()
         if correct_target_num == 0:
             continue
 
-        hamming_dist = torch.mm(query_hash_code, target_hash_code.t())
+        hamming_dist = torch.matmul(query_item, target_item.t())
         _, hd_sorted_idx = hamming_dist.sort(descending=True)
         query_result = is_correct_target[hd_sorted_idx]
+        total = min(k, correct_target_num)
 
-        count = torch.linspace(1, correct_target_num, correct_target_num)
-        tindex = torch.nonzero(query_result == 1) + 1.
-        mAP += count/tindex
+        count = torch.arange(1, correct_target_num+1)
+        tindex = torch.nonzero(query_result)[:total].squeeze() + 1.
+        mAP += torch.mean(count.type(torch.FloatTensor)/tindex.type(torch.FloatTensor))
     return mAP/len(queries)
 
 def train(img_model, text_model, source_data, vocab_size, device):
@@ -158,8 +157,8 @@ def train(img_model, text_model, source_data, vocab_size, device):
     idx_list = [i for i in range(nsource)]
     val_idx_list = np.random.choice(idx_list, int(nsource/10), replace=False)
     train_idx_list = np.setdiff1d(idx_list, val_idx_list)
-    train_data = [ [idx] + source_data[idx] for idx in train_idx_list ] 
-    val_data = [ [idx] + source_data[idx] for idx in val_idx_list ] 
+    train_data = [ [idx] + source_data[data_idx] for idx, data_idx in enumerate(train_idx_list) ] 
+    val_data = [ [idx] + source_data[data_idx] for idx, data_idx in enumerate(val_idx_list) ] 
 
     ntrain = len(train_data)
     print(ntrain)
@@ -188,8 +187,10 @@ def train(img_model, text_model, source_data, vocab_size, device):
         hash_matrix = torch.sign(img_out + text_out)
         loss = calc_loss(sim_matrix, hash_matrix, img_out, text_out, gamma, eta, ntrain, device)
         print('loss: ', loss.item())
+        i2t_mAP, t2i_mAP = validation(img_model, text_model, val_data, device)
+        print('text to image mAP: ', i2t_mAP.item(), 'image to text mAP: ', t2i_mAP.item())
 
-def validation(img_model, text_model, val_data):
+def validation(img_model, text_model, val_data, device):
     nval = len(val_data)
 
     idx_list = [i for i in range(nval)]
@@ -199,22 +200,21 @@ def validation(img_model, text_model, val_data):
     ret_data = [ val_data[idx] for idx in ret_idx_list ] 
 
     query_loader = torch.utils.data.DataLoader(query_data, batch_size=len(query_data))
-    for data_ids, data_idxs, imgs, tag_vecs in enumerate(query_loader):
+    for data_ids, data_idxs, imgs, tag_vecs in query_loader:
+        imgs, tag_vecs = imgs.to(device), tag_vecs.to(device)
         query_img_hash_code = generate_img_code(img_model, imgs)
         query_text_hash_code = generate_text_code(text_model, tag_vecs)
         query_labels = tag_vecs
 
     ret_loader = torch.utils.data.DataLoader(ret_data, batch_size=len(ret_data))
-    for data_ids, data_idxs, imgs, tag_vecs in enumerate(query_loader):
+    for data_ids, data_idxs, imgs, tag_vecs in query_loader:
+        imgs, tag_vecs = imgs.to(device), tag_vecs.to(device)
         ret_img_hash_code = generate_img_code(img_model, imgs)
         ret_text_hash_code = generate_text_code(text_model, tag_vecs)
         ret_labels = tag_vecs
 
-    calc_map(query_img_hash_code, query_labels, ret_text_hash_code, ret_labels)
-    calc_map(query_text_hash_code, query_labels, ret_img_hash_code, ret_labels)
-
-
-
+    return calc_map(query_img_hash_code, query_labels, ret_text_hash_code, ret_labels),\
+            calc_map(query_text_hash_code, query_labels, ret_img_hash_code, ret_labels)
 
 def test(model):
     model.eval()
