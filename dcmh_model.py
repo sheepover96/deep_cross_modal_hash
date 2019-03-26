@@ -1,7 +1,18 @@
 import torch
 import torch.nn as nn
 
-class CNNModel(nn.Module):
+import time
+
+class BaseModel(nn.Module):
+    def __init__(self, *args, **kwargs):
+        super(BaseModel, self).__init__(*args, **kwargs)
+    
+    def save(self, model_path):
+        torch.save(self.state_dict, model_path)
+
+
+
+class CNNModel(BaseModel):
     def __init__(self, input_size, hash_code_len, *args, **kwargs):
         super(CNNModel, self).__init__(*args, **kwargs)
         self.conv1 = nn.Conv2d(3, 64, kernel_size=11, stride=4, padding=0)
@@ -45,7 +56,7 @@ class CNNModel(nn.Module):
         return out
 
 
-class TextModel(nn.Module):
+class TextModel(BaseModel):
     def __init__(self, vocab_size, hash_code_len, *args, **kwargs):
         super(TextModel, self).__init__(*args, **kwargs)
         self.conv1 = nn.Conv1d(1, 8192, kernel_size=vocab_size, stride=1)

@@ -12,6 +12,9 @@ from torchtext.data import Field
 from torchtext.datasets import LanguageModelingDataset
 import spacy
 spacy_en = spacy.load('en')
+import matplotlib
+import matplotlib.pyplot as plt
+matplotlib.use('agg')
 
 from data_loader import DcmhDataset
 from dcmh_model import CNNModel, TextModel
@@ -178,6 +181,10 @@ def train(img_model, text_model, source_data, vocab_size, device):
     img_optimizer = optim.SGD(img_model.parameters(), lr=0.01)
     text_optimizer = optim.SGD(text_model.parameters(), lr=0.01)
 
+    loss_hist = []
+    i2t_mAP_hist = []
+    t2i_mAP_hist = [] 
+
     for epoch in range(NEPOCH):
         print('epoch: ', (epoch))
         img_out = train_cnn(epoch, img_model, text_model, hash_matrix, sim_matrix, device,\
@@ -186,9 +193,28 @@ def train(img_model, text_model, source_data, vocab_size, device):
             train_loader, text_optimizer, img_out, text_out, gamma, eta, ntrain)
         hash_matrix = torch.sign(img_out + text_out)
         loss = calc_loss(sim_matrix, hash_matrix, img_out, text_out, gamma, eta, ntrain, device)
+        loss_hist.append(loss)
         print('loss: ', loss.item())
         i2t_mAP, t2i_mAP = validation(img_model, text_model, val_data, device)
+        i2t_mAP_hist.append(i2t_mAP)
+        t2i_mAP_hist.append(t2i_mAP)
         print('text to image mAP: ', i2t_mAP.item(), 'image to text mAP: ', t2i_mAP.item())
+    
+    fig = plt.figure()
+    plt.plot(range(NEPOCH), loss, marker='.', label='train loss')
+    plt.legend()
+    plt.grid()
+    plt.xlabel('epoch')
+    plt.savefig('result/train_loss.png')
+
+    fig = plt.figure()
+    plt.plot(range(NEPOCH), i2t_mAP_hist, marker='.', label='image to text mAP')
+    plt.plot(range(NEPOCH), t2i_mAP_hist, marker='*', label='text to image mAP')
+    plt.legend()
+    plt.grid()
+    plt.xlabel('epoch')
+    plt.savefig('result/val_mAP.png')
+
 
 def validation(img_model, text_model, val_data, device):
     nval = len(val_data)
@@ -241,6 +267,8 @@ def main():
 
     train(img_model, text_model, train_data, vocab_size, device)
 
+    img_model.save('model/img_model.t7')
+    text_model.save('model/text_model.t7')
 
 
 if  __name__ == '__main__':
