@@ -41,16 +41,17 @@ class DcmhDataset(Dataset):
         return len(self.df)
     
     def __getitem__(self, idx):
-        data_no = self.df.iat[idx, 0]
-        data_id = self.df.iat[idx, 1]
-        img_path = self.df.iat[idx, 2]
+        data_id = self.df.iat[idx, 0]
+        img_path = self.df.iat[idx, 1]
         img = Image.open(img_path)
         if self.img_transform:
             img = self.img_transform(img)#.view(256,256,3)
         #print(img.view(256,256,3))
-        tag_list = ast.literal_eval(self.df.iat[idx, 3])
+        tag_list = ast.literal_eval(self.df.iat[idx, 2])
         tag_vec = torch.zeros(self.vocab_size)
         for tag in tag_list:
-            tag_vec[self.vocab_stoi[tag]] = 1
+            tag_vec[self.vocab_stoi[tag]] = 1.
+        if tag_vec.sum() == 0:
+            print(tag_vec)
 
-        return data_no, data_id, img, tag_vec
+        return [data_id, img, tag_vec]

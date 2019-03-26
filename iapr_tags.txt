@@ -24612,9 +24612,6 @@ couple-of-persons
 cactus
 face-of-person
 ruin-archeological
-cloud
-group-of-persons
-monument
 group-of-persons
 street
 cloud
@@ -55418,7 +55415,6 @@ rock
 ground
 ground
 sky-blue
-water
 swimming-pool
 trees
 roof
@@ -61251,8 +61247,6 @@ roof
 lamp
 lamp
 wall
-eagle
-sky
 sky-blue
 sand-dessert
 smoke
@@ -61265,8 +61259,6 @@ sky-light
 chair
 table
 person
-vegetation
-sky-light
 group-of-persons
 fabric
 flag
