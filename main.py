@@ -10,6 +10,8 @@ import numpy as np
 import time
 from torchtext.data import Field
 from torchtext.datasets import LanguageModelingDataset
+import nltk
+from nltk.corpus import stopwords
 import spacy
 spacy_en = spacy.load('en')
 import matplotlib
@@ -33,9 +35,9 @@ def train_cnn(epoch, img_model, text_model, hash_matrix, sim_matrix, device, tra
     #text_model.eval()
 
     loss_mean = 0
-    for batch_idx, (data_ids, data_idxs, imgs, tag_vecs) in enumerate(train_loader):
+    for batch_idx, (data_ids, data_idxs, imgs, desc_vecs, tag_vecs) in enumerate(train_loader):
         batch_size = len(data_ids)
-        imgs, tag_vecs = imgs.to(device), tag_vecs.to(device)
+        imgs, desc_vecs, tag_vecs = imgs.to(device), desc_vecs.to(device), tag_vecs.to(device)
         unupdated_ids = np.setdiff1d(range(ntrains), data_ids)
         ones = torch.ones(batch_size, 1).to(device)
         ones_ = torch.ones(ntrains - batch_size, 1).to(device)
@@ -63,20 +65,19 @@ def train_cnn(epoch, img_model, text_model, hash_matrix, sim_matrix, device, tra
     return img_out
 
 def train_text(epoch, img_model, text_model, hash_matrix, sim_matrix, device, train_loader, text_optimizer, img_out, text_out, gamma, eta, ntrains):
-    ones = torch.ones(ntrains, 1).to(device)
     #img_model.train()
     #text_model.eval()
 
     loss_mean = 0
-    for batch_idx, (data_ids, data_idxs, imgs, tag_vecs) in enumerate(train_loader):
+    for batch_idx, (data_ids, data_idxs, imgs, desc_vecs, tag_vecs) in enumerate(train_loader):
         batch_size = len(data_ids)
-        imgs, tag_vecs = imgs.to(device), tag_vecs.to(device)
+        imgs, desc_vecs, tag_vecs = imgs.to(device), desc_vecs.to(device), tag_vecs.to(device)
         unupdated_ids = np.setdiff1d(range(ntrains), data_ids)
         ones = torch.ones(batch_size, 1).to(device)
         ones_ = torch.ones(ntrains - batch_size, 1).to(device)
 
         text_optimizer.zero_grad()
-        text_out_batch = text_model(tag_vecs)
+        text_out_batch = text_model(desc_vecs)
         #print(text_out_batch)
 
         text_out[data_ids,:] = text_out_batch.data
@@ -251,23 +252,30 @@ def tokenizer2(text):
     return [tok.text for tok in spacy_en.tokenizer(text)]
 
 def main():
+    nltk.download('stopwords')
+    en_stopwords = stopwords.words('english')
     device = torch.device("cuda" if GPU else "cpu")
 
-    TEXT = Field(sequential=True, tokenize=tokenizer2, lower=True, stop_words=['<eos>'])
-    lang = LanguageModelingDataset(path='./iapr_tags.txt', text_field=TEXT)
-    TEXT.build_vocab(lang)
-    vocab = TEXT.vocab
-    vocab_size = len(vocab.freqs) + 1
+    TAG_TEXT = Field(sequential=True, tokenize=tokenizer2, lower=True, stop_words=['<eos>'])
+    tag_lang = LanguageModelingDataset(path='./iapr_tags.txt', text_field=TAG_TEXT)
+    TAG_TEXT.build_vocab(tag_lang)
+    tag_vocab = TAG_TEXT.vocab
+    tag_vocab_size = len(tag_vocab.stoi) + 1
     #print(vocab.itos)
     #print(vocab.stoi)
+    DESC_TEXT = Field(sequential=True, tokenize=tokenizer2, lower=True, stop_words=(['<eos>'] + en_stopwords))
+    desc_lang = LanguageModelingDataset(path='./iapr_tags.txt', text_field=DESC_TEXT)
+    DESC_TEXT.build_vocab(desc_lang)
+    desc_vocab = DESC_TEXT.vocab
+    desc_vocab_size = len(desc_vocab.stoi) + 1
 
-    train_data = DcmhDataset('./train_saiapr.csv', vocab.stoi, vocab_size)
-    test_data = DcmhDataset('./test_saiapr.csv', vocab.stoi, vocab_size)
+    train_data = DcmhDataset('./train_saiapr.csv', tag_vocab.stoi, tag_vocab_size, desc_vocab.stoi, desc_vocab_size)
+    test_data = DcmhDataset('./test_saiapr.csv', tag_vocab.stoi, tag_vocab_size, desc_vocab.stoi, desc_vocab_size)
 
     img_model = CNNModel(IMG_SIZE, HASH_CODR_LENGTH).to(device)
-    text_model = TextModel(vocab_size, HASH_CODR_LENGTH).to(device)
+    text_model = TextModel(desc_vocab_size, HASH_CODR_LENGTH).to(device)
 
-    train(img_model, text_model, train_data, vocab_size, device)
+    train(img_model, text_model, train_data, tag_vocab_size, device)
 
     img_model.save('model/img_model.t7')
     text_model.save('model/text_model.t7')

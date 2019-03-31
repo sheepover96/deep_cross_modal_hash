@@ -3,6 +3,7 @@ import spacy
 
 import sys, os, csv
 import ast
+import xml.etree.ElementTree as ET
 
 nlp = spacy.load('en')
 
