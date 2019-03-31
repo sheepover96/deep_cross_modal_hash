@@ -130,7 +130,7 @@ def calc_loss(sim_matrix, hash_matrix, img_out, text_out, gamma, eta, ntrains, d
 
     loss = sim_sum + gamma*preserve_sim + eta*preserve_balance
 
-    return loss
+    return loss.item()
 
 def calc_map(queries, queries_label, target_item, target_label, k=None):
     mAP = 0.
@@ -151,7 +151,8 @@ def calc_map(queries, queries_label, target_item, target_label, k=None):
         count = torch.arange(1, correct_target_num+1)
         tindex = torch.nonzero(query_result)[:total].squeeze() + 1.
         mAP += torch.mean(count.type(torch.FloatTensor)/tindex.type(torch.FloatTensor))
-    return mAP/len(queries)
+    mAP /= len(queries)
+    return mAP.item()
 
 def train(img_model, text_model, source_data, vocab_size, device):
 
@@ -194,14 +195,14 @@ def train(img_model, text_model, source_data, vocab_size, device):
         hash_matrix = torch.sign(img_out + text_out)
         loss = calc_loss(sim_matrix, hash_matrix, img_out, text_out, gamma, eta, ntrain, device)
         loss_hist.append(loss)
-        print('loss: ', loss.item())
+        print('loss: ', loss)
         i2t_mAP, t2i_mAP = validation(img_model, text_model, val_data, device)
         i2t_mAP_hist.append(i2t_mAP)
         t2i_mAP_hist.append(t2i_mAP)
-        print('text to image mAP: ', i2t_mAP.item(), 'image to text mAP: ', t2i_mAP.item())
-    
+        print('text to image mAP: ', i2t_mAP, 'image to text mAP: ', t2i_mAP)
+
     fig = plt.figure()
-    plt.plot(range(NEPOCH), loss, marker='.', label='train loss')
+    plt.plot(range(NEPOCH), loss_hist, marker='.', label='train loss')
     plt.legend()
     plt.grid()
     plt.xlabel('epoch')
@@ -220,7 +221,8 @@ def validation(img_model, text_model, val_data, device):
     nval = len(val_data)
 
     idx_list = [i for i in range(nval)]
-    query_idx_list = np.random.choice(idx_list, 20, replace=False)
+    #query_idx_list = np.random.choice(idx_list, 20, replace=False)
+    query_idx_list = idx_list[:20]
     ret_idx_list = np.setdiff1d(idx_list, query_idx_list)
     query_data = [ val_data[idx] for idx in query_idx_list ] 
     ret_data = [ val_data[idx] for idx in ret_idx_list ] 
@@ -259,7 +261,7 @@ def main():
     #print(vocab.itos)
     #print(vocab.stoi)
 
-    train_data = DcmhDataset('./train_saiapr_mini.csv', vocab.stoi, vocab_size)
+    train_data = DcmhDataset('./train_saiapr.csv', vocab.stoi, vocab_size)
     test_data = DcmhDataset('./test_saiapr.csv', vocab.stoi, vocab_size)
 
     img_model = CNNModel(IMG_SIZE, HASH_CODR_LENGTH).to(device)

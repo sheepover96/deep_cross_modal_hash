@@ -8,7 +8,7 @@ class BaseModel(nn.Module):
         super(BaseModel, self).__init__(*args, **kwargs)
     
     def save(self, model_path):
-        torch.save(self.state_dict, model_path)
+        torch.save(self.state_dict(), model_path)
 
 
 
