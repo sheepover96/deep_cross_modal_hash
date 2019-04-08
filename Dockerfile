@@ -7,8 +7,10 @@ RUN apt-get update -y && \
 RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app
 
-COPY ./ ./
+COPY ./main.py ./
+COPY ./requirements.txt ./
 RUN pip3 install --no-cache-dir -r requirements.txt
 RUN python3 -m spacy download en
+RUN python3 -m nltk.downloader stopwords
 
 CMD python3 main.py

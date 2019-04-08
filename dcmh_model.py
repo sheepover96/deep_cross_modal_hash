@@ -25,10 +25,10 @@ class CNNModel(BaseModel):
         self.conv4 = nn.Conv2d(256, 256, kernel_size=5, stride=1, padding=1)
         self.conv5 = nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=0)
         self.pool5 = nn.MaxPool2d(2) 
-        self.conv6 = nn.Conv2d(256, 512, kernel_size=1, stride=1, padding=0)
-        self.conv7 = nn.Conv2d(512, 512, kernel_size=1, stride=1, padding=0)
+        self.conv6 = nn.Conv2d(256, 1024, kernel_size=1, stride=1, padding=0)
+        self.conv7 = nn.Conv2d(1024, 1024, kernel_size=1, stride=1, padding=0)
         self.avgpool = nn.AdaptiveAvgPool2d((1,1))
-        self.fc = nn.Linear(512, hash_code_len)
+        self.fc = nn.Linear(1024, hash_code_len)
 
     def forward(self, input):
         x = self.conv1(input)
@@ -61,9 +61,9 @@ class TextModel(BaseModel):
         super(TextModel, self).__init__(*args, **kwargs)
         self.conv1 = nn.Conv1d(1, 8192, kernel_size=vocab_size, stride=1)
         self.conv2 = nn.Conv1d(8192, hash_code_len, kernel_size=1, stride=1)
-        self.fc1 = nn.Linear(vocab_size, 512)
+        self.fc1 = nn.Linear(vocab_size, 2048)
         self.relu = nn.ReLU(inplace=True)
-        self.fc2 = nn.Linear(512, hash_code_len)
+        self.fc2 = nn.Linear(2048, hash_code_len)
 
     def forward(self, input):
         x = self.fc1(input)

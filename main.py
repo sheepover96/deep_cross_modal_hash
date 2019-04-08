@@ -165,10 +165,12 @@ def train(img_model, text_model, source_data, vocab_size, device):
     train_data = [ [idx] + source_data[data_idx] for idx, data_idx in enumerate(train_idx_list) ] 
     val_data = [ [idx] + source_data[data_idx] for idx, data_idx in enumerate(val_idx_list) ] 
 
+    lr_schedule = np.linspace(0.01, np.power(10, -6.), NEPOCH)
+
     ntrain = len(train_data)
     print(ntrain)
     train_loader_ = torch.utils.data.DataLoader(train_data, batch_size=ntrain)
-    for batch_idx, (data_ids, data_idxs, imgs, tag_vecs) in enumerate(train_loader_):
+    for batch_idx, (data_ids, data_idxs, imgs, doc_vecs, tag_vecs) in enumerate(train_loader_):
         label_set = tag_vecs
     train_loader = torch.utils.data.DataLoader(train_data, batch_size=BATCH_SIZE)
     gamma = 1.
@@ -202,6 +204,13 @@ def train(img_model, text_model, source_data, vocab_size, device):
         t2i_mAP_hist.append(t2i_mAP)
         print('text to image mAP: ', i2t_mAP, 'image to text mAP: ', t2i_mAP)
 
+        lr = lr_schedule[epoch]
+        for param in img_optimizer.param_groups:
+            param['lr'] = lr
+
+        for param in text_optimizer.param_groups:
+            param['lr'] = lr
+
     fig = plt.figure()
     plt.plot(range(NEPOCH), loss_hist, marker='.', label='train loss')
     plt.legend()
@@ -224,22 +233,22 @@ def validation(img_model, text_model, val_data, device):
     idx_list = [i for i in range(nval)]
     #query_idx_list = np.random.choice(idx_list, 20, replace=False)
     query_idx_list = idx_list[:20]
-    ret_idx_list = np.setdiff1d(idx_list, query_idx_list)
-    query_data = [ val_data[idx] for idx in query_idx_list ] 
-    ret_data = [ val_data[idx] for idx in ret_idx_list ] 
+    ret_idx_list = idx_list
+    query_data = [ val_data[idx] for idx in query_idx_list ]
+    ret_data = [ val_data[idx] for idx in ret_idx_list ]
 
     query_loader = torch.utils.data.DataLoader(query_data, batch_size=len(query_data))
-    for data_ids, data_idxs, imgs, tag_vecs in query_loader:
-        imgs, tag_vecs = imgs.to(device), tag_vecs.to(device)
+    for data_ids, data_idxs, imgs, doc_vecs, tag_vecs in query_loader:
+        imgs, doc_vecs, tag_vecs = imgs.to(device), doc_vecs.to(device), tag_vecs.to(device)
         query_img_hash_code = generate_img_code(img_model, imgs)
-        query_text_hash_code = generate_text_code(text_model, tag_vecs)
+        query_text_hash_code = generate_text_code(text_model, doc_vecs)
         query_labels = tag_vecs
 
     ret_loader = torch.utils.data.DataLoader(ret_data, batch_size=len(ret_data))
-    for data_ids, data_idxs, imgs, tag_vecs in query_loader:
-        imgs, tag_vecs = imgs.to(device), tag_vecs.to(device)
+    for data_ids, data_idxs, imgs, doc_vecs, tag_vecs in query_loader:
+        imgs, doc_vecs, tag_vecs = imgs.to(device), doc_vecs.to(device), tag_vecs.to(device)
         ret_img_hash_code = generate_img_code(img_model, imgs)
-        ret_text_hash_code = generate_text_code(text_model, tag_vecs)
+        ret_text_hash_code = generate_text_code(text_model, doc_vecs)
         ret_labels = tag_vecs
 
     return calc_map(query_img_hash_code, query_labels, ret_text_hash_code, ret_labels),\
@@ -252,7 +261,7 @@ def tokenizer2(text):
     return [tok.text for tok in spacy_en.tokenizer(text)]
 
 def main():
-    nltk.download('stopwords')
+    #nltk.download('stopwords')
     en_stopwords = stopwords.words('english')
     device = torch.device("cuda" if GPU else "cpu")
 
@@ -264,13 +273,13 @@ def main():
     #print(vocab.itos)
     #print(vocab.stoi)
     DESC_TEXT = Field(sequential=True, tokenize=tokenizer2, lower=True, stop_words=(['<eos>'] + en_stopwords))
-    desc_lang = LanguageModelingDataset(path='./iapr_tags.txt', text_field=DESC_TEXT)
-    DESC_TEXT.build_vocab(desc_lang)
+    desc_lang = LanguageModelingDataset(path='./iapr_docs.txt', text_field=DESC_TEXT)
+    DESC_TEXT.build_vocab(desc_lang, min_freq=2)
     desc_vocab = DESC_TEXT.vocab
     desc_vocab_size = len(desc_vocab.stoi) + 1
 
-    train_data = DcmhDataset('./train_saiapr.csv', tag_vocab.stoi, tag_vocab_size, desc_vocab.stoi, desc_vocab_size)
-    test_data = DcmhDataset('./test_saiapr.csv', tag_vocab.stoi, tag_vocab_size, desc_vocab.stoi, desc_vocab_size)
+    train_data = DcmhDataset('./train_saiapr2.csv', tag_vocab.stoi, tag_vocab_size, desc_vocab.stoi, desc_vocab_size)
+    test_data = DcmhDataset('./test_saiapr2.csv', tag_vocab.stoi, tag_vocab_size, desc_vocab.stoi, desc_vocab_size)
 
     img_model = CNNModel(IMG_SIZE, HASH_CODR_LENGTH).to(device)
     text_model = TextModel(desc_vocab_size, HASH_CODR_LENGTH).to(device)
@@ -280,6 +289,6 @@ def main():
     img_model.save('model/img_model.t7')
     text_model.save('model/text_model.t7')
 
-
 if  __name__ == '__main__':
     main()
+
