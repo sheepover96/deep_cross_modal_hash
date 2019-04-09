@@ -254,23 +254,23 @@ def main():
     device = torch.device("cuda" if GPU else "cpu")
 
     TEXT = Field(sequential=True, tokenize=tokenizer2, lower=True, stop_words=['<eos>'])
-    lang = LanguageModelingDataset(path='./iapr_tags.txt', text_field=TEXT)
+    lang = LanguageModelingDataset(path='./dataset/iapr_tags.txt', text_field=TEXT)
     TEXT.build_vocab(lang)
     vocab = TEXT.vocab
     vocab_size = len(vocab.freqs) + 1
     #print(vocab.itos)
     #print(vocab.stoi)
 
-    train_data = DcmhDataset('./train_saiapr.csv', vocab.stoi, vocab_size)
-    test_data = DcmhDataset('./test_saiapr.csv', vocab.stoi, vocab_size)
+    train_data = DcmhDataset('./dataset/train_saiapr.csv', vocab.stoi, vocab_size)
+    test_data = DcmhDataset('./dataset/test_saiapr.csv', vocab.stoi, vocab_size)
 
     img_model = CNNModel(IMG_SIZE, HASH_CODR_LENGTH).to(device)
     text_model = TextModel(vocab_size, HASH_CODR_LENGTH).to(device)
 
     train(img_model, text_model, train_data, vocab_size, device)
 
-    img_model.save('model/img_model.t7')
-    text_model.save('model/text_model.t7')
+    img_model.save('model/img_model_wn.t7')
+    text_model.save('model/text_model_wn.t7')
 
 
 if  __name__ == '__main__':
