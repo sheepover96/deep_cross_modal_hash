@@ -95,7 +95,7 @@ def add_caption():
                             labels = element[2]
                             train_data_list.append([img_no, img_path, des.text, labels])
 
-                        element = test_df[train_df[0] == int(data_no)]
+                        element = test_df[test_df[0] == int(data_no)]
                         if not element.empty:
                             for desc in an_dict.iter('DESCRIPTION'):
                                 des = desc
@@ -139,5 +139,5 @@ def create_docs():
 if __name__ == '__main__':
     #create_kv_dataset()
     #create_tags()
-    #add_caption()
+    add_caption()
     create_docs()

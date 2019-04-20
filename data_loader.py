@@ -68,4 +68,4 @@ class DcmhDataset(Dataset):
         if tag_vec.sum() == 0:
             print(tag_vec)
 
-        return [data_id, img, desc_vec, tag_vec]
+        return [data_id, img, desc_vec, tag_vec, description]
