@@ -47,14 +47,13 @@ class DcmhDataset(Dataset):
         img = Image.open(img_path)
         if self.img_transform:
             img = self.img_transform(img)#.view(256,256,3)
-        #print(img.view(256,256,3))
         tag_list = ast.literal_eval(self.df.iat[idx, 2])
         tag_vec = torch.zeros(self.vocab_size)
         for tag in tag_list:
-            if self.vocab_stoi[tag] != '<unk>':
+            if self.vocab_stoi[tag] != 0:
                 tag_vec[self.vocab_stoi[tag]] = 1.
             else:
-                print(tag)
+                print('not found', tag)
         if tag_vec.sum() == 0:
             print(tag_vec)
 
