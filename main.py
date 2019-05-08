@@ -250,6 +250,9 @@ def test(model):
 def tokenizer2(text):
     return [tok.text for tok in spacy_en.tokenizer(text)]
 
+def tokenizer1(text):
+    return [tok for tok in text.split()]
+
 def main():
     device = torch.device("cuda" if GPU else "cpu")
 

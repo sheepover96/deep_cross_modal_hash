@@ -5,6 +5,7 @@ from torchvision import datasets, transforms
 import pandas as pd
 import ast
 from PIL import Image
+import matplotlib.pyplot as plt
  
 class ResizeImg():
 
@@ -23,7 +24,7 @@ class ResizeImg():
             resize_ratio = self.resized_len/short_side_len
             resized_w = 256
             resized_h = int(h * resize_ratio)
-        
+
         resized_img = img.resize((resized_w, resized_h))
         return resized_img
 
@@ -39,7 +40,7 @@ class DcmhDataset(Dataset):
 
     def __len__(self):
         return len(self.df)
-    
+
     def __getitem__(self, idx):
         data_id = self.df.iat[idx, 0]
         img_path = self.df.iat[idx, 1]
@@ -50,7 +51,10 @@ class DcmhDataset(Dataset):
         tag_list = ast.literal_eval(self.df.iat[idx, 2])
         tag_vec = torch.zeros(self.vocab_size)
         for tag in tag_list:
-            tag_vec[self.vocab_stoi[tag]] = 1.
+            if self.vocab_stoi[tag] != '<unk>':
+                tag_vec[self.vocab_stoi[tag]] = 1.
+            else:
+                print(tag)
         if tag_vec.sum() == 0:
             print(tag_vec)
 
